@@ -1,0 +1,53 @@
+version: "3"
+
+networks:
+  app-tier:
+    driver: bridge
+
+services:
+  service:
+    build:
+      context: .
+    networks:
+      - app-tier
+    environment:
+      KAFKA_HOST: kafka:9092
+      KAFKA_TOPIC: test_topic
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - kafka
+    volumes:
+      - ./:/usr/src/app
+  int-test:
+    build:
+      context: .
+    networks:
+      - app-tier
+    depends_on:
+      - service
+    volumes:
+      - ./:/usr/src/app
+    environment:
+      KAFKA_HOST: kafka:9092
+      KAFKA_TOPIC: test_topic
+      TEST_URL: http://service:3000
+    command: "npm run test:watch"
+    # command: "npm run test"
+  zookeeper:
+    image: "bitnami/zookeeper:latest"
+    networks:
+      - app-tier
+    environment:
+      - ALLOW_ANONYMOUS_LOGIN=yes
+  kafka:
+    image: "bitnami/kafka:latest"
+    depends_on:
+      - zookeeper
+    networks:
+      - app-tier
+    environment:
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
